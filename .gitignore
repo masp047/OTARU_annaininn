@@ -1,0 +1,7 @@
+# 配布元PDFは第三者の著作物なのでリポジトリには含めない
+past_exams/*.pdf
+tests/fixtures/
+
+__pycache__/
+*.pyc
+.venv/

@@ -1,0 +1,6 @@
+requests>=2.31
+pdfplumber>=0.11
+pypdf>=4.0
+
+# tests/make_fixtures.py（疑似PDFによる動作確認）でのみ使用
+reportlab>=4.0
