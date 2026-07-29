@@ -41,6 +41,20 @@
 > このリポジトリはpush済みなので、新セッションで `./run_all.sh` を実行すれば
 > そのままCSVまで生成されます。
 
+## 重要: 日本語CMapが必要です
+
+配布元PDFは Adobe-Japan1 の日本語CIDフォントを参照しています。CMapデータが
+無い環境では `pdftotext` が文字化けするか空文字列を返し、「PDFが壊れている」
+ように見えます。**poppler-data を入れれば解決します。**
+
+```bash
+sudo apt-get install -y poppler-data   # Debian/Ubuntu
+brew install poppler                   # macOS（poppler-dataを含む）
+```
+
+これを入れると解答PDF23ファイルすべてから正確なテキストが取れます。
+問題PDFはスキャン画像なので、別途OCR済みPDF（`past_exams_ocr/`）を使います。
+
 ## 使い方
 
 ```bash
