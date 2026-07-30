@@ -7,7 +7,9 @@ data/exam_*.json を埋め込んだ study_app.html を出力する。
 - 写真つき設問は images/ の画像を相対パスで表示する
   （file:// でも <img src> は読めるので、画像はファイル参照のまま持つ）
 - 成績は localStorage に保存し、間違えた問題を優先的に再出題する
-- 記述式は自己採点（正解を表示して○×を自分で押す）
+- 記述式は回答を入力させ、採点はClaudeに依頼する
+  （アプリからClaudeを呼べないため、依頼文をクリップボードにコピーして
+   チャットに貼る。判定が返ってきたら○×をアプリに記録する）
 
 使い方:
     python3 scripts/build_app.py
@@ -85,6 +87,20 @@ th,td { text-align:left; padding:.4rem .5rem; border-bottom:1px solid var(--line
 th { color:var(--muted); font-weight:600; }
 td.num { text-align:right; font-variant-numeric:tabular-nums; }
 .hint { font-size:.78rem; color:var(--muted); margin-top:1rem; }
+textarea { font:inherit; width:100%; min-height:4.5rem; padding:.6rem .8rem;
+  border:1px solid var(--line); border-radius:7px; background:var(--bg);
+  color:var(--fg); resize:vertical; }
+.cmp { display:grid; gap:.5rem; margin:.9rem 0; }
+.cmp div { padding:.5rem .8rem; border-radius:6px; border:1px solid var(--line); }
+.cmp .k { font-size:.75rem; color:var(--muted); display:block; }
+.pend { background:var(--card); border:1px solid var(--line); border-radius:9px;
+  padding:.9rem 1rem; margin-bottom:1.25rem; font-size:.88rem; }
+.pend h2 { font-size:.9rem; margin:0 0 .6rem; }
+.pend ul { list-style:none; margin:0 0 .7rem; padding:0; }
+.pend li { display:flex; gap:.5rem; align-items:center; padding:.3rem 0;
+  border-bottom:1px solid var(--line); }
+.pend li span { flex:1; }
+.pend li button { padding:.2rem .55rem; font-size:.8rem; }
 .empty { color:var(--muted); }
 """
 
@@ -159,7 +175,8 @@ function render() {
     ? `<div class="choices">${q.choices.map((c, i) =>
         `<button class="choice" data-i="${i+1}">
            <span class="n">${CIRC[i]}</span><span>${c}</span></button>`).join('')}</div>`
-    : `<div class="selfmark"><button id="show">答えを見る</button></div>`;
+    : `<textarea id="mine" placeholder="答えを入力してください"></textarea>
+       <div class="selfmark"><button id="submit">回答する</button></div>`;
 
   $('#quiz').innerHTML = `
     <div class="card">
@@ -171,7 +188,7 @@ function render() {
 
   $('#quiz').querySelectorAll('.choice').forEach(b =>
     b.onclick = () => choose(Number(b.dataset.i)));
-  const s = $('#show'); if (s) s.onclick = showFree;
+  const s = $('#submit'); if (s) s.onclick = submitFree;
 }
 
 function choose(i) {
@@ -193,17 +210,82 @@ function choose(i) {
   $('#next').onclick = render;
 }
 
-function showFree() {
+/* 記述式は自分では採点しない。回答を採点待ちに積み、
+   まとめてClaudeに判定してもらう。 */
+function submitFree() {
   if (answered) return;
   answered = true;
   const q = current;
+  const mine = ($('#mine').value || '').trim();
+  pending.push({id:q.id, exam:q.exam, no:q.no, sub:q.sub, q:q.q, mine, correct:q.a});
+  savePending();
+  renderPending();
   $('#reveal').innerHTML = `<div class="reveal">
-    正解: <b>${q.a}</b>
+    <div class="cmp">
+      <div><span class="k">あなたの回答</span>${mine || '（未記入）'}</div>
+      <div><span class="k">模範解答</span><b>${q.a}</b></div>
+    </div>
+    採点待ちに追加しました。上の「採点をClaudeに依頼」からまとめて判定できます。
     ${q.note ? `<div class="note">${q.note}</div>` : ''}
-    <div class="selfmark">
-      <button id="y">正答できた</button><button id="n">できなかった</button></div></div>`;
-  $('#y').onclick = () => { mark(true); render(); };
-  $('#n').onclick = () => { mark(false); render(); };
+    <div class="selfmark"><button id="next">次の問題 →</button></div></div>`;
+  $('#next').onclick = render;
+}
+
+/* ---- 採点待ちの管理 ---- */
+const PKEY = 'otaru-pending-v1';
+let pending = JSON.parse(localStorage.getItem(PKEY) || '[]');
+const savePending = () => localStorage.setItem(PKEY, JSON.stringify(pending));
+
+function requestText() {
+  const lines = ['以下の記述式問題を採点してください。私の回答と模範解答を比べて、',
+    '各問に ○ か × と、必要なら一言の解説をお願いします。', ''];
+  pending.forEach((p, i) => {
+    lines.push(`【${i+1}】第${p.exam}回 問${p.no}${p.sub||''}`);
+    lines.push(`問題: ${p.q}`);
+    lines.push(`私の回答: ${p.mine || '（未記入）'}`);
+    lines.push(`模範解答: ${p.correct}`);
+    lines.push('');
+  });
+  return lines.join('\n');
+}
+
+function renderPending() {
+  const box = $('#pending');
+  if (!pending.length) { box.innerHTML = ''; return; }
+  box.innerHTML = `<div class="pend">
+    <h2>採点待ち ${pending.length}件</h2>
+    <ul>${pending.map((p, i) => `<li>
+      <span>第${p.exam}回 問${p.no}${p.sub||''}　${p.mine || '（未記入）'}</span>
+      <button data-ok="${i}">○</button><button data-ng="${i}">×</button>
+    </li>`).join('')}</ul>
+    <button id="copy">採点をClaudeに依頼（コピー）</button>
+    <button id="clearp">まとめて破棄</button>
+    <div class="note">コピーしてチャットに貼り、返ってきた判定を ○ / × で記録してください。</div>
+  </div>`;
+  box.querySelectorAll('[data-ok]').forEach(b =>
+    b.onclick = () => resolvePending(Number(b.dataset.ok), true));
+  box.querySelectorAll('[data-ng]').forEach(b =>
+    b.onclick = () => resolvePending(Number(b.dataset.ng), false));
+  $('#copy').onclick = async () => {
+    const txt = requestText();
+    try { await navigator.clipboard.writeText(txt); $('#copy').textContent = 'コピーしました'; }
+    catch { prompt('以下をコピーしてください', txt); }
+    setTimeout(() => { const c = $('#copy'); if (c) c.textContent = '採点をClaudeに依頼（コピー）'; }, 1800);
+  };
+  $('#clearp').onclick = () => {
+    if (!confirm(`採点待ち${pending.length}件を破棄します。よろしいですか。`)) return;
+    pending = []; savePending(); renderPending();
+  };
+}
+
+function resolvePending(i, ok) {
+  const p = pending[i];
+  const r = rec(p.id);
+  r.seen++;
+  if (ok) { r.ok++; r.box = Math.min(5, r.box + 1); } else { r.ng++; r.box = 0; }
+  save();
+  pending.splice(i, 1); savePending();
+  renderPending(); renderStats();
 }
 
 function renderStats() {
@@ -253,7 +335,7 @@ document.addEventListener('keydown', e => {
   }
 });
 
-renderExamButtons(); setMode(); renderStats(); render();
+renderExamButtons(); setMode(); renderStats(); renderPending(); render();
 """
 
 
@@ -310,6 +392,7 @@ def main() -> int:
 <h1>おたる案内人検定 学習アプリ
   <small>{len(questions)}問 / 第{exams[0]}回〜第{exams[-1]}回（{len(exams)}回分）</small></h1>
 <div id="stats" class="stats"></div>
+<div id="pending"></div>
 <div class="bar">
   <button data-mode="weak">要復習・未挑戦</button>
   <button data-mode="all">全問ランダム</button>
@@ -319,7 +402,8 @@ def main() -> int:
 <div class="bar" id="exams"></div>
 <div id="quiz"></div>
 <p class="hint">キーボード: 1〜4 で選択 / Enter で次へ。
-  記録はこのブラウザに保存されます。</p>
+  記録はこのブラウザに保存されます。
+  記述式の採点はClaudeに依頼します（自己採点はしません）。</p>
 </main>
 <script>const QUESTIONS = {json.dumps(questions, ensure_ascii=False)};</script>
 <script>{JS}</script>
