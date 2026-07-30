@@ -36,6 +36,9 @@ DEFAULT_OUT = ROOT / "images"
 MARGIN_PT = 0.0
 # 同じ行と見なす縦方向のずれ
 ROW_TOLERANCE = 20.0
+# 埋め込み画像がこれ未満の解像度なら警告する。
+# 元PDFに情報が無いので、高DPIで描画しても判別できるようにはならない。
+MIN_SRC_PIXELS = 200
 
 
 def reading_order(boxes: list[dict]) -> list[dict]:
@@ -116,6 +119,12 @@ def main() -> int:
                         {k: im[k] for k in ("x0", "top", "x1", "bottom")}
                         for im in pdf.pages[p - 1].images
                     ])
+                    for im in pdf.pages[p - 1].images:
+                        w, h = im.get("srcsize", (0, 0))
+                        if min(w, h) and min(w, h) < MIN_SRC_PIXELS:
+                            warnings.append(
+                                f"第{n}回 {p}ページ: 埋め込み画像が{w}x{h}pxしかなく "
+                                f"判別が困難。元PDFの品質による")
 
         for it in targets:
             spec = it["photo"]
