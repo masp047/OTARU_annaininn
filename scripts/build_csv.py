@@ -16,6 +16,8 @@ import csv
 import json
 from pathlib import Path
 
+from photo_spec import is_choice_photos, photo_names
+
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DATA = ROOT / "data"
 DEFAULT_OUT = ROOT / "otaru_kanko_past_exams.csv"
@@ -62,18 +64,17 @@ def build_rows(exam: dict) -> list[dict]:
         photo = item.get("photo")
         images = ""
         if photo:
-            base = f"R{n:02d}-Q{no:03d}"
-            if photo.get("role") == "stem":
-                images = f"images/{base}-stem.png"
-            else:
-                images = " ".join(
-                    f"images/{base}-{i + 1}.png" for i in range(photo["n"]))
+            images = " ".join(
+                f"images/{name}.png" for name in photo_names(n, no, photo))
 
         lines = [f"【第{n}回 おたる案内人検定 問{no}{sub}】", item["q"]]
         for i, ch in enumerate(choices):
             lines.append(f"{marker(i)} {ch}")
-        if item.get("photo"):
-            lines.append("（選択肢は写真です。images/ の画像を参照）")
+        if photo:
+            lines.append(
+                "（選択肢は写真です。images/ の画像を参照）"
+                if is_choice_photos(photo)
+                else "（設問に写真がつきます。images/ の画像を参照）")
         if answer_label:
             lines.append(
                 f"正解: {answer_label}" + (f" {answer_body}" if answer_body else "")

@@ -2,12 +2,7 @@
 """写真つき設問の画像を切り抜き、設問と紐付けて保存する。
 
 data/exam_NN.json の設問に photo 指定があるものを対象にする。
-
-    "photo": {"page": 3, "n": 4}            # 選択肢が4枚の写真（読み順で1〜4）
-    "photo": {"page": 4, "n": 1, "role": "stem"}   # 問題文側に写真1枚
-    "photo": {"page": 4, "n": 4, "order": [1, 3, 4, 2]}
-        # 誌面の並びが選択肢番号と一致しない場合。読み順のi番目が
-        # order[i] 番の選択肢であることを示す（第3回 問24 など）
+指定の書き方とファイル名の決まりは photo_spec.py を参照。
 
 ページ内の画像は「上の行から、行内は左から」の読み順に並べ替えて
 選択肢番号を割り当てる。設問との対応はJSON側に人手で記録する方式にした。
@@ -29,6 +24,8 @@ from pathlib import Path
 
 import pdfplumber
 import pypdfium2 as pdfium
+
+from photo_spec import page_slice, photo_names
 
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DATA = ROOT / "data"
@@ -132,28 +129,19 @@ def main() -> int:
         for it in targets:
             spec = it["photo"]
             p, want = spec["page"], spec["n"]
-            role = spec.get("role", "choices")
-            boxes = page_boxes.get(p, [])
+            all_boxes = page_boxes.get(p, [])
+            lo, hi = page_slice(spec)
+            boxes = all_boxes[lo:hi]
 
             if len(boxes) != want:
                 warnings.append(
-                    f"第{n}回 問{it['no']}: {p}ページの画像が{len(boxes)}枚 "
-                    f"(想定{want}枚) — 対応がずれる可能性があります")
-            boxes = boxes[:want]
+                    f"第{n}回 問{it['no']}: {p}ページの画像{len(all_boxes)}枚から"
+                    f"{lo + 1}枚目以降を{want}枚使う指定だが{len(boxes)}枚しか無い "
+                    f"— 対応がずれる可能性があります")
             if not boxes:
                 continue
 
-            base = f"R{n:02d}-Q{it['no']:03d}"
-            # 誌面の並びが選択肢番号と一致しないことがあるので、
-            # order 指定があればそれに従って番号を割り当てる。
-            order = spec.get("order") or list(range(1, len(boxes) + 1))
-            if len(order) != len(boxes):
-                warnings.append(
-                    f"第{n}回 問{it['no']}: order の要素数({len(order)})が"
-                    f"画像数({len(boxes)})と一致しない")
-                order = list(range(1, len(boxes) + 1))
-            names = ([f"{base}-stem"] if role == "stem"
-                     else [f"{base}-{k}" for k in order])
+            names = photo_names(n, it["no"], spec)
             written = crop_page(pdf_path, p, boxes, names, args.out, args.dpi)
             total += len(written)
             print(f"第{n}回 問{it['no']}: {len(written)}枚 → "

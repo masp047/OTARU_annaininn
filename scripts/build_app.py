@@ -22,6 +22,8 @@ import argparse
 import json
 from pathlib import Path
 
+from photo_spec import is_choice_photos, photo_names
+
 ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_DATA = ROOT / "data"
 DEFAULT_OUT = ROOT / "study_app.html"
@@ -159,14 +161,17 @@ function render() {
   const q = current;
   const sub = q.sub ? q.sub : '';
   /* 写真そのものが選択肢の設問は、写真をクリックして選ぶ。
-     テキストの「［写真1］」は重複するので出さない。 */
-  const pickPhotos = q.type === '写真選択' && q.photos.length;
+     テキストの「［写真1］」は重複するので出さない。
+     参考写真（role: stem）はクリックの対象にせず、見出しだけ添える。 */
+  const pickPhotos = q.photoPick && q.photos.length;
   const photos = q.photos.length
     ? `<div class="photos">${q.photos.map((p, i) => pickPhotos
         ? `<button class="pick choice" data-i="${i+1}">
              <img src="${p}" alt="選択肢${i+1}" loading="lazy">
              <figcaption>${CIRC[i]} 選択肢${i+1}</figcaption></button>`
-        : `<figure class="pick"><img src="${p}" alt="" loading="lazy"></figure>`
+        : `<figure class="pick"><img src="${p}" alt="" loading="lazy">
+             ${q.photoLabels[i] ? `<figcaption>${q.photoLabels[i]}</figcaption>` : ''}
+           </figure>`
       ).join('')}</div>`
     : '';
 
@@ -358,18 +363,21 @@ def build_questions(data_dir: Path) -> list[dict]:
             if choices and answer.isdigit() and 1 <= int(answer) <= len(choices):
                 abody = choices[int(answer) - 1]
 
-            photos = []
             spec = it.get("photo")
-            if spec and spec.get("role", "choices") == "choices":
-                photos = [f"images/R{n:02d}-Q{it['no']:03d}-{i + 1}.png"
-                          for i in range(spec["n"])]
-            elif spec:
-                photos = [f"images/R{n:02d}-Q{it['no']:03d}-stem.png"]
+            photos, labels, pick = [], [], False
+            if spec:
+                photos = [f"images/{name}.png"
+                          for name in photo_names(n, it["no"], spec)]
+                # 「A」「B」のように誌面に見出しがある参考写真は、
+                # 同じ見出しを画像の下に出さないと本文と対応が取れない。
+                labels = spec.get("labels", [])
+                pick = is_choice_photos(spec)
 
             out.append({
                 "id": qid, "exam": n, "no": it["no"], "sub": sub,
                 "type": it.get("type", ""), "q": it["q"], "choices": choices,
                 "a": answer, "abody": abody, "photos": photos,
+                "photoLabels": labels, "photoPick": pick,
                 "note": it.get("note", ""),
             })
     return out
