@@ -5,3 +5,6 @@ tests/fixtures/
 __pycache__/
 *.pyc
 .venv/
+
+# pdfimages で再生成できるため除外（CSVの注意列にファイル名を記録）
+images/

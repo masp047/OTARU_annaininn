@@ -121,8 +121,10 @@ def main() -> int:
 
     print(f"\n書き出し: {args.out}")
     print(f"  {len(rows)}行 / {len(exams)}回分")
-    print(f"  形式内訳: 選択 {sum(1 for r in rows if r['形式'] == '選択')} / "
-          f"記述 {sum(1 for r in rows if r['形式'] == '記述')}")
+    kinds: dict[str, int] = {}
+    for r in rows:
+        kinds[r["形式"] or "(不明)"] = kinds.get(r["形式"] or "(不明)", 0) + 1
+    print("  形式内訳: " + " / ".join(f"{k} {v}" for k, v in sorted(kinds.items())))
     print(f"  注意フラグ: {flagged}行 / 正解未確定: {unresolved}行")
     print(f"  未収録の回: {[i for i in range(1, 24) if i not in exams]}")
     return 0
