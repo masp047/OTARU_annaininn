@@ -32,8 +32,8 @@ DEFAULT_DATA = ROOT / "data"
 DEFAULT_PDF_DIR = ROOT / "past_exams_ocr"
 DEFAULT_OUT = ROOT / "images"
 
-# 切り抜きに少し余白を持たせる（枠線やキャプションの取りこぼしを防ぐ）
-MARGIN_PT = 2.0
+# 余白を取ると隣に置かれた選択肢番号を拾ってしまうため、bboxぴったりで切る
+MARGIN_PT = 0.0
 # 同じ行と見なす縦方向のずれ
 ROW_TOLERANCE = 20.0
 
