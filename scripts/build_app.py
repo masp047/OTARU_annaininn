@@ -194,17 +194,20 @@ function render() {
 function choose(i) {
   if (answered) return;
   answered = true;
-  const q = current, ok = String(i) === String(q.a);
+  const q = current;
+  /* 出題側の不備で正解番号が定められなかった設問がある（第3回 問97）。
+     正解が1〜4でないときは、どれを選んでも正解として扱う。 */
+  const noKey = !/^[0-9]+$/.test(String(q.a));
+  const ok = noKey || String(i) === String(q.a);
   $('#quiz').querySelectorAll('.choice').forEach(b => {
     const n = Number(b.dataset.i);
-    if (String(n) === String(q.a)) b.classList.add('ok');
-    else if (n === i) b.classList.add('ng');
+    if (!noKey && String(n) === String(q.a)) b.classList.add('ok');
+    else if (!noKey && n === i) b.classList.add('ng');
   });
   mark(ok);
   $('#reveal').innerHTML = `<div class="reveal">
     ${ok ? '<b>正解</b>' : '<span style="color:var(--ng);font-weight:700">不正解</span>'}
-    　正解は <b>${CIRC[Number(q.a)-1] || q.a}</b>
-    ${q.abody ? ' ' + q.abody : ''}
+    ${noKey ? '' : `　正解は <b>${CIRC[Number(q.a)-1] || q.a}</b>${q.abody ? ' ' + q.abody : ''}`}
     ${q.note ? `<div class="note">${q.note}</div>` : ''}
     <div class="selfmark"><button id="next">次の問題 →</button></div></div>`;
   $('#next').onclick = render;
