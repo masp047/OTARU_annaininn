@@ -34,6 +34,15 @@ Y_TOLERANCE = 9.0
 # 列クラスタリングの許容幅（列間隔は約133pt）
 X_CLUSTER = 40.0
 
+# 解答用紙の様式ラベル。最終列の下部にある「点数」「合・否」欄が
+# 直近の設問セルの範囲に入ってしまうため、語単位で除外する。
+# 「・」は「元治2年・1865年」のように答えの一部にもなるので単体では消さず、
+# 除外後に前後へ残ったものだけを落とす。
+NOISE_WORDS = {
+    "点数", "点", "合", "否", "合否",
+    "受験", "受験番号", "氏名", "解答欄", "回答欄",
+}
+
 
 def to_int(s: str) -> int:
     return int(unicodedata.normalize("NFKC", s))
@@ -89,8 +98,10 @@ def extract(pdf_path: Path) -> dict[int, str]:
                         and not LABEL.match(v["text"])
                     ]
                     cell.sort(key=lambda v: (round(v["top"] / 8), v["x0"]))
-                    parts = ([inline] if inline else []) + [v["text"] for v in cell]
-                    text = " ".join(parts).strip()
+                    parts = ([inline] if inline else []) + [
+                        v["text"] for v in cell if v["text"] not in NOISE_WORDS
+                    ]
+                    text = " ".join(parts).strip(" ・|　")
                     if text:
                         answers[no] = text
 
