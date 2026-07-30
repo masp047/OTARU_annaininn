@@ -25,7 +25,7 @@ CIRCLED = "①②③④⑤⑥⑦⑧⑨⑩"
 FIELDS = [
     "問題ID", "回数", "検定回", "実施日", "級", "問題番号", "枝番",
     "形式", "問題文", "選択肢1", "選択肢2", "選択肢3", "選択肢4",
-    "正解", "正解本文", "注意", "出典", "全文",
+    "正解", "正解本文", "画像", "注意", "出典", "全文",
 ]
 
 
@@ -57,9 +57,23 @@ def build_rows(exam: dict) -> list[dict]:
 
         qid = f"R{n:02d}-Q{no:03d}" + (f"-{sub}" if sub else "")
 
+        # 写真つき設問は切り抜き画像のファイル名を記録する。
+        # 写真は文字で描写しても伝わらないため、画像そのものを参照させる。
+        photo = item.get("photo")
+        images = ""
+        if photo:
+            base = f"R{n:02d}-Q{no:03d}"
+            if photo.get("role") == "stem":
+                images = f"images/{base}-stem.png"
+            else:
+                images = " ".join(
+                    f"images/{base}-{i + 1}.png" for i in range(photo["n"]))
+
         lines = [f"【第{n}回 おたる案内人検定 問{no}{sub}】", item["q"]]
         for i, ch in enumerate(choices):
             lines.append(f"{marker(i)} {ch}")
+        if item.get("photo"):
+            lines.append("（選択肢は写真です。images/ の画像を参照）")
         if answer_label:
             lines.append(
                 f"正解: {answer_label}" + (f" {answer_body}" if answer_body else "")
@@ -79,6 +93,7 @@ def build_rows(exam: dict) -> list[dict]:
             "問題文": item["q"],
             "正解": answer_label,
             "正解本文": answer_body,
+            "画像": images,
             "注意": item.get("note", ""),
             "出典": exam.get("出典", ""),
             "全文": "\n".join(lines),

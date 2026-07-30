@@ -8,3 +8,4 @@ __pycache__/
 
 # pdfimages で再生成できるため除外（CSVの注意列にファイル名を記録）
 images/
+photo_questions.html
