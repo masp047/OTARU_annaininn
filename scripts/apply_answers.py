@@ -86,7 +86,7 @@ def main() -> int:
             continue
         key = json.loads(key_path.read_text(encoding="utf-8"))
 
-        diffs, missing = [], []
+        diffs, missing, odd = [], [], []
         for it in exam["設問"]:
             raw = key.get(str(it["no"]))
             if raw is None:
@@ -104,6 +104,12 @@ def main() -> int:
             before = it.get("a", "")
             if before and before != want:
                 diffs.append((it["no"], it.get("sub", ""), before, want))
+            # 解答用紙には吹き出しの注記が刷り込まれていることがあり、
+            # 座標抽出でその文が答えの位置に入り込む（第4回 問10・問11、
+            # 第5回 問19）。選択式なら答えは1〜4のはずなので、外れたら知らせる。
+            choices = it.get("c", [])
+            if choices and not (want.isdigit() and 1 <= int(want) <= len(choices)):
+                odd.append((it["no"], it.get("sub", ""), want))
             it["a"] = want
 
         path.write_text(
@@ -112,6 +118,9 @@ def main() -> int:
         print(f"第{n}回: {len(exam['設問'])}件に正解を反映")
         for no, sub, before, want in diffs:
             print(f"  相違 問{no}{sub}: 「{before}」→ 「{want}」（解答PDF優先）")
+        for no, sub, want in odd:
+            print(f"  要確認 問{no}{sub}: 選択式なのに正解が「{want}」"
+                  f"（解答用紙の注記が混入している可能性）")
         if missing:
             print(f"  解答なし: {missing}")
     return 0
