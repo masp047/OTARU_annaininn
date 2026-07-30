@@ -5,6 +5,9 @@ data/exam_NN.json の設問に photo 指定があるものを対象にする。
 
     "photo": {"page": 3, "n": 4}            # 選択肢が4枚の写真（読み順で1〜4）
     "photo": {"page": 4, "n": 1, "role": "stem"}   # 問題文側に写真1枚
+    "photo": {"page": 4, "n": 4, "order": [1, 3, 4, 2]}
+        # 誌面の並びが選択肢番号と一致しない場合。読み順のi番目が
+        # order[i] 番の選択肢であることを示す（第3回 問24 など）
 
 ページ内の画像は「上の行から、行内は左から」の読み順に並べ替えて
 選択肢番号を割り当てる。設問との対応はJSON側に人手で記録する方式にした。
@@ -141,8 +144,16 @@ def main() -> int:
                 continue
 
             base = f"R{n:02d}-Q{it['no']:03d}"
+            # 誌面の並びが選択肢番号と一致しないことがあるので、
+            # order 指定があればそれに従って番号を割り当てる。
+            order = spec.get("order") or list(range(1, len(boxes) + 1))
+            if len(order) != len(boxes):
+                warnings.append(
+                    f"第{n}回 問{it['no']}: order の要素数({len(order)})が"
+                    f"画像数({len(boxes)})と一致しない")
+                order = list(range(1, len(boxes) + 1))
             names = ([f"{base}-stem"] if role == "stem"
-                     else [f"{base}-{i + 1}" for i in range(len(boxes))])
+                     else [f"{base}-{k}" for k in order])
             written = crop_page(pdf_path, p, boxes, names, args.out, args.dpi)
             total += len(written)
             print(f"第{n}回 問{it['no']}: {len(written)}枚 → "
