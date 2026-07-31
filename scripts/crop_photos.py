@@ -110,6 +110,8 @@ def main() -> int:
         with pdfplumber.open(pdf_path) as pdf:
             page_boxes = {}
             for it in targets:
+                if it["photo"].get("bbox"):
+                    continue
                 p = it["photo"]["page"]
                 if p not in page_boxes:
                     if p > len(pdf.pages):
@@ -129,11 +131,20 @@ def main() -> int:
         for it in targets:
             spec = it["photo"]
             p, want = spec["page"], spec["n"]
-            all_boxes = page_boxes.get(p, [])
-            lo, hi = page_slice(spec)
-            boxes = all_boxes[lo:hi]
+            if spec.get("bbox"):
+                # ページ全体が1枚のスキャン画像のPDFは、埋め込み画像の
+                # 位置から写真を割り出せないので座標をそのまま使う。
+                boxes = [{"x0": b[0], "top": b[1], "x1": b[2], "bottom": b[3]}
+                         for b in spec["bbox"]]
+                if len(boxes) != want:
+                    warnings.append(
+                        f"第{n}回 問{it['no']}: bbox が{len(boxes)}個で n={want} と合わない")
+            else:
+                all_boxes = page_boxes.get(p, [])
+                lo, hi = page_slice(spec)
+                boxes = all_boxes[lo:hi]
 
-            if len(boxes) != want:
+            if not spec.get("bbox") and len(boxes) != want:
                 warnings.append(
                     f"第{n}回 問{it['no']}: {p}ページの画像{len(all_boxes)}枚から"
                     f"{lo + 1}枚目以降を{want}枚使う指定だが{len(boxes)}枚しか無い "
