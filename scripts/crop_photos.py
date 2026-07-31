@@ -117,9 +117,13 @@ def main() -> int:
                     if p > len(pdf.pages):
                         warnings.append(f"第{n}回 問{it['no']}: {p}ページは存在しない")
                         continue
+                    # 隣のページの画像が座標だけページ外（x<0 や幅を超える）で
+                    # 混ざって出てくることがある（第22回）。誌面に写らないので外す。
+                    page = pdf.pages[p - 1]
                     page_boxes[p] = reading_order([
                         {k: im[k] for k in ("x0", "top", "x1", "bottom")}
-                        for im in pdf.pages[p - 1].images
+                        for im in page.images
+                        if im["x1"] > 0 and im["x0"] < page.width
                     ])
                     for im in pdf.pages[p - 1].images:
                         w, h = im.get("srcsize", (0, 0))
