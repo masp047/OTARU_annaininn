@@ -31,6 +31,47 @@ xdg-open study_app.html  # Linux
   ボタンでプロンプトをコピーできます。それをこのチャットに貼れば、
   あなたの答えと模範解答を比べて採点します。結果は ○/× で記録に反映します
 
+## 公式ガイドブック
+
+学習アプリの上にある「公式ガイドブックを引く →」から `guidebook.html` が開き
+ます。公式テキストブック全248ページを、そのままの誌面で読めるビューアです。
+
+```bash
+open guidebook.html
+```
+
+- **ページを送る** — ← → キー / 誌面の左右を押す / 指ではらう / 下のスライダー
+- **見開き** — 画面が広ければ自動で見開きになります（右上のボタンで単ページに）
+- **目次** — 全36節。押せばその節の先頭ページへ飛びます（`t` キー）
+- **探す** — 目次と本文の全文検索（`/` キー）。ページ番号の欄に数字を入れれば
+  誌面のページ番号で直接飛べます
+- 最後に読んでいたページを覚えていて、次に開いたときはそこから続きます
+
+ページはPDFではなく1枚ずつの画像で持っています。PDFのまま埋め込むと、めくる
+たびに70MBを読み直すことになり、ページを送る操作になりません。画像なら次の
+数ページを先読みしておけるので、押した瞬間に切り替わります。
+
+### 誌面のテキストと文字化けについて
+
+配布PDFにはOCR済みのテキスト層が入っていますが、質にばらつきがあり、図版の
+まわりや段組みの境目が「鱗感溌纏 醗匡且二覇」のような読めない文字列になって
+います。`ocr_guidebook.py` が tesseract で読み直し、**ひらがなの割合**でページ
+ごとに良い方を採ります（日本語の本文は3〜5割がひらがな、崩れた箇所はほぼ0）。
+248ページ中152ページで tesseract 側を採用し、平均かな率が31.4%→33.5%に
+なりました。それでも本文として読めない26ページは、検索の対象から外しています。
+
+検索は空白と改行を落とした本文に対して行います。段組みの折り返しで「鰊御殿」が
+「鰊御／殿」と割れていることがあるためです。それでも見つからないときは1文字
+違いまで許して探し、その結果には「1文字違い」の印を付けます（OCRが鰊を鯨と
+読んでいる箇所があります）。
+
+### ページ番号
+
+誌面には扉や図版のページに番号が刷られておらず、通しページ番号とのずれが
+8→16と増えていきます。`build_guidebook.py` はこのずれが**減ることはない**性質を
+使い、ずれが減った箇所＝ノンブルの拾い間違いとして捨てたうえで、前後の足場から
+番号の無いページを埋めます（誌面のp1がこれで復元されます）。
+
 ## 正解の信頼性について
 
 **正解は必ず解答PDFのテキスト層から機械的に取り込んでいます。**
@@ -90,6 +131,22 @@ python3 scripts/build_app.py
 python3 scripts/build_csv.py
 ```
 
+ガイドブックのビューアは次の3手順で作ります（PDFを差し替えたときだけ）。
+
+```bash
+python3 scripts/extract_guidebook.py   # 誌面のテキストとページ番号を取り出す
+python3 scripts/ocr_guidebook.py       # tesseractで読み直し、良い方を採る
+python3 scripts/render_guidebook.py    # 全248ページを画像にする（約32MB）
+python3 scripts/build_guidebook.py     # guidebook.html を生成
+```
+
+`ocr_guidebook.py` には tesseract と日本語データが要ります。
+
+```bash
+sudo apt-get install -y tesseract-ocr tesseract-ocr-jpn
+brew install tesseract tesseract-lang
+```
+
 問題文は `data/exam_NN.json` に手で書き起こします。1問は次の形です。
 
 ```json
@@ -139,11 +196,16 @@ python3 scripts/build_csv.py
 
 ```
 study_app.html              学習アプリ（生成物・これを開く）
+guidebook.html              公式ガイドブックのビューア（生成物）
 otaru_kanko_past_exams.csv  CSV（生成物）
 images/                     写真つき設問の切り抜き画像
+guidebook_pages/            ガイドブック全248ページの画像（生成物）
 
 data/exam_NN.json           問題文の書き起こし（手入力）
 data/answers/answers_N.json 解答PDFから抽出した正解
+data/guidebook_pages.json   誌面のテキスト・ページ番号
+data/guidebook_toc.json     ガイドブックの目次（手入力）
+data/guidebook_tags.json    町名・分野の分類。今のビューアは使っていない
 
 scripts/extract_answers.py  解答PDFから座標ベースで正解を抽出
 scripts/apply_answers.py    解答を正として exam_NN.json の a を上書き
@@ -151,9 +213,17 @@ scripts/crop_photos.py      写真つき設問の画像を切り抜く
 scripts/photo_spec.py       photo 指定と画像ファイル名の規則
 scripts/build_app.py        study_app.html を生成
 scripts/build_csv.py        CSVを生成
+scripts/extract_guidebook.py  ガイドブックの本文とノンブルを取り出す
+scripts/ocr_guidebook.py      tesseractで読み直し、ページごとに良い方を採る
+scripts/render_guidebook.py   全ページをWebP画像に書き出す
+scripts/build_guidebook.py    guidebook.html を生成
 scripts/split_pdf.py        大きいPDFをGitHubの制限内に分割
 scripts/inspect_pdf.py      レイアウト確認用の診断ツール
 ```
+
+`data/guidebook_tags.json` は町名・分野ごとの索引を作るために用意したもの
+ですが、誌面をそのまま読む形にしたため今は使っていません。索引を戻すときの
+ために残してあります。
 
 `extract_exams.py` は当初の正規表現ベースの一括抽出パイプラインです。問題PDFが
 スキャン画像だったため現在は使っていませんが、テストとともに残してあります。
