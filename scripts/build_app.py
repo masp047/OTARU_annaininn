@@ -78,6 +78,11 @@ button.on { background:var(--accent); color:var(--bg); border-color:var(--accent
 .reveal b { color:var(--ok); }
 .note { font-size:.8rem; color:var(--muted); margin-top:.5rem; }
 .selfmark { display:flex; gap:.5rem; margin-top:.9rem; }
+/* 公式ガイドブックの索引へ。学習アプリ側にはリンクだけを置く。 */
+.gblink { display:inline-block; margin:0 0 1rem; padding:.5rem .95rem;
+  border:1px solid var(--accent); border-radius:.5rem; color:var(--accent);
+  text-decoration:none; font-size:.9rem; font-weight:600; }
+.gblink:hover { background:var(--accent); color:var(--bg); }
 .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(8rem,1fr));
   gap:.7rem; margin-bottom:1.25rem; }
 .stat { background:var(--card); border:1px solid var(--line); border-radius:9px;
@@ -402,6 +407,7 @@ def main() -> int:
 <style>{CSS}</style></head><body><main>
 <h1>おたる案内人検定 学習アプリ
   <small>{len(questions)}問 / 第{exams[0]}回〜第{exams[-1]}回（{len(exams)}回分）</small></h1>
+<a class="gblink" href="guidebook.html">公式ガイドブックを引く →</a>
 <div id="stats" class="stats"></div>
 <div id="pending"></div>
 <div class="bar">
