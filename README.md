@@ -72,6 +72,12 @@ open guidebook.html
 使い、ずれが減った箇所＝ノンブルの拾い間違いとして捨てたうえで、前後の足場から
 番号の無いページを埋めます（誌面のp1がこれで復元されます）。
 
+機械で拾えない番号は `data/guidebook_nombres.json` に誌面を見て書いてあります。
+写真の上に白抜きで刷られていて地の色に紛れるもの（p15）や、章末の白ページで
+番号そのものが省かれているもの（p14）です。この6ページを足場にすると、残りは
+前後から数えて埋まります。結果、番号が分からないページは27→16まで減り、
+残る16ページは表紙まわりの8ページと、全面が黒地の扉8ページです。
+
 ## 正解の信頼性について
 
 **正解は必ず解答PDFのテキスト層から機械的に取り込んでいます。**
@@ -205,6 +211,7 @@ data/exam_NN.json           問題文の書き起こし（手入力）
 data/answers/answers_N.json 解答PDFから抽出した正解
 data/guidebook_pages.json   誌面のテキスト・ページ番号
 data/guidebook_toc.json     ガイドブックの目次（手入力）
+data/guidebook_nombres.json 誌面を見て確かめたページ番号（手入力）
 data/guidebook_tags.json    町名・分野の分類。今のビューアは使っていない
 
 scripts/extract_answers.py  解答PDFから座標ベースで正解を抽出

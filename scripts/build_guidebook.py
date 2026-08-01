@@ -45,7 +45,7 @@ def kana_ratio(text: str) -> float:
     return len(HIRAGANA.findall(t)) / len(t) if t else 0.0
 
 
-def fix_page_numbers(rows: list[dict]) -> dict:
+def fix_page_numbers(rows: list[dict], read_by_eye: dict[int, int] | None = None) -> dict:
     """拾ったノンブルの誤りを落とし、刷られていないページの番号を補う。
 
     通しページ番号と誌面のページ番号の差（ずれ）は、番号の無い扉や図版が
@@ -60,7 +60,15 @@ def fix_page_numbers(rows: list[dict]) -> dict:
     残した番号を足場に、番号の無いページを埋める。前後の足場のずれが
     同じならその間に扉は無いので数えれば分かる。ずれが違えばその間の
     どこかに扉があり、どのページが扉かは分からないので埋めない。
+
+    read_by_eye は誌面を見て確かめた番号（data/guidebook_nombres.json）。
+    写真の上に白抜きで刷られた番号などは機械では拾えないが、扉の位置を
+    決めるにはここが要る。拾った番号より優先する。
     """
+    for i, r in enumerate(rows):
+        if read_by_eye and r["seq"] in read_by_eye:
+            r["page"] = read_by_eye[r["seq"]]
+
     n = len(rows)
     known = [(i, r["page"]) for i, r in enumerate(rows) if r["page"] is not None]
 
@@ -132,7 +140,8 @@ def build(data_dir: Path, img_dir: Path) -> dict:
             "t": "" if kana_ratio(text) < 0.15 else flat,
         })
 
-    fixed = fix_page_numbers(out)
+    nombres = json.loads((data_dir / "guidebook_nombres.json").read_text(encoding="utf-8"))
+    fixed = fix_page_numbers(out, {r["seq"]: r["page"] for r in nombres["番号"]})
 
     missing = [r["seq"] for r in out
                if not (img_dir / f"p{r['seq']:03d}.webp").exists()]
