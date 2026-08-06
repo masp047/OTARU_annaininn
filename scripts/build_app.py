@@ -83,6 +83,13 @@ button.on { background:var(--accent); color:var(--bg); border-color:var(--accent
   border:1px solid var(--accent); border-radius:.5rem; color:var(--accent);
   text-decoration:none; font-size:.9rem; font-weight:600; }
 .gblink:hover { background:var(--accent); color:var(--bg); }
+/* 答え合わせのあとに出す、誌面の該当ページへの案内 */
+.gbref { display:inline-flex; align-items:center; gap:.45rem; margin-top:.8rem;
+  padding:.4rem .75rem; border:1px solid var(--line); border-radius:.5rem;
+  color:var(--accent); text-decoration:none; font-size:.85rem; }
+.gbref:hover { border-color:var(--accent); background:var(--card); }
+.gbref .p { font-weight:700; font-variant-numeric:tabular-nums; }
+.gbref .why { color:var(--muted); font-size:.78rem; }
 .stats { display:grid; grid-template-columns:repeat(auto-fit,minmax(8rem,1fr));
   gap:.7rem; margin-bottom:1.25rem; }
 .stat { background:var(--card); border:1px solid var(--line); border-radius:9px;
@@ -201,6 +208,17 @@ function render() {
   const s = $('#submit'); if (s) s.onclick = submitFree;
 }
 
+/* 答え合わせのあとに「これはガイドブックのどこに書いてあるか」を出す。
+   結びつけは設問と誌面の言葉を突き合わせた機械的なものなので、
+   何を頼りに指しているのかも一緒に見せる。 */
+function gbRef(q) {
+  if (!q.gb) return '';
+  const why = q.gbHow === '答え' ? '答えが載っています' : '同じ話題のページです';
+  return `<div><a class="gbref" href="guidebook.html#p${q.gb}" target="_blank">
+    ガイドブック <span class="p">p${q.gb}</span>
+    <span class="why">${why}</span></a></div>`;
+}
+
 function choose(i) {
   if (answered) return;
   answered = true;
@@ -219,6 +237,7 @@ function choose(i) {
     ${ok ? '<b>正解</b>' : '<span style="color:var(--ng);font-weight:700">不正解</span>'}
     ${noKey ? '' : `　正解は <b>${CIRC[Number(q.a)-1] || q.a}</b>${q.abody ? ' ' + q.abody : ''}`}
     ${q.note ? `<div class="note">${q.note}</div>` : ''}
+    ${gbRef(q)}
     <div class="selfmark"><button id="next">次の問題 →</button></div></div>`;
   $('#next').onclick = render;
 }
@@ -240,6 +259,7 @@ function submitFree() {
     </div>
     採点待ちに追加しました。上の「採点をClaudeに依頼」からまとめて判定できます。
     ${q.note ? `<div class="note">${q.note}</div>` : ''}
+    ${gbRef(q)}
     <div class="selfmark"><button id="next">次の問題 →</button></div></div>`;
   $('#next').onclick = render;
 }
@@ -354,6 +374,10 @@ renderExamButtons(); setMode(); renderStats(); renderPending(); render();
 
 def build_questions(data_dir: Path) -> list[dict]:
     out = []
+    # 設問ごとのガイドブックの該当ページ。無くてもアプリは動く
+    links_path = data_dir / "guidebook_links.json"
+    links = (json.loads(links_path.read_text(encoding="utf-8"))
+             if links_path.exists() else {})
     files = sorted(data_dir.glob("exam_*.json"),
                    key=lambda p: int(p.stem.split("_")[1]))
     for path in files:
@@ -378,12 +402,15 @@ def build_questions(data_dir: Path) -> list[dict]:
                 labels = spec.get("labels", [])
                 pick = is_choice_photos(spec)
 
+            link = links.get(qid)
             out.append({
                 "id": qid, "exam": n, "no": it["no"], "sub": sub,
                 "type": it.get("type", ""), "q": it["q"], "choices": choices,
                 "a": answer, "abody": abody, "photos": photos,
                 "photoLabels": labels, "photoPick": pick,
                 "note": it.get("note", ""),
+                "gb": link["page"] if link else None,
+                "gbHow": link["how"] if link else "",
             })
     return out
 

@@ -51,6 +51,23 @@ open guidebook.html
 たびに70MBを読み直すことになり、ページを送る操作になりません。画像なら次の
 数ページを先読みしておけるので、押した瞬間に切り替わります。
 
+### 設問から誌面を引く
+
+答え合わせのあとに「ガイドブック p217」のような案内が出ます。押すとその
+ページが開きます。2,298問のうち **2,172問（95%）** に付いています。
+
+結びつけは `link_guidebook.py` が機械的に行います。**正解の言葉そのものが
+載っているページ**が見つかればそこを指し（1,304問・「答えが載っています」）、
+見つからなければ設問と誌面で共通する語のうち珍しい語を頼りに、話題の近い
+ページを指します（868問・「同じ話題のページです」）。どちらの根拠で指して
+いるかは案内に書いてあるので、外れていそうなら本文検索で探し直せます。
+
+珍しい語ほど重く数え（IDF）、正解に出てくる語はさらに3倍に数えます。
+「次の無形文化財のうち国指定はどれか（正解：松前神楽）」のような設問で、
+問題文の「無形文化財」に引かれて別のページを指さないようにするためです。
+手がかりの語が7ページ以上に出ている場合は、話題が近いだけの可能性が高い
+ので結びつけません。
+
 ### 誌面のテキストと文字化けについて
 
 配布PDFにはOCR済みのテキスト層が入っていますが、質にばらつきがあり、図版の
@@ -137,13 +154,20 @@ python3 scripts/build_app.py
 python3 scripts/build_csv.py
 ```
 
-ガイドブックのビューアは次の3手順で作ります（PDFを差し替えたときだけ）。
+ガイドブックのビューアは次の手順で作ります（PDFを差し替えたときだけ）。
 
 ```bash
 python3 scripts/extract_guidebook.py   # 誌面のテキストとページ番号を取り出す
 python3 scripts/ocr_guidebook.py       # tesseractで読み直し、良い方を採る
 python3 scripts/render_guidebook.py    # 全248ページを画像にする（約32MB）
 python3 scripts/build_guidebook.py     # guidebook.html を生成
+```
+
+設問と誌面の結びつけは、問題文か誌面のテキストを直したときに作り直します。
+
+```bash
+python3 scripts/link_guidebook.py      # data/guidebook_links.json
+python3 scripts/build_app.py           # 学習アプリに取り込む
 ```
 
 `ocr_guidebook.py` には tesseract と日本語データが要ります。
@@ -212,6 +236,7 @@ data/answers/answers_N.json 解答PDFから抽出した正解
 data/guidebook_pages.json   誌面のテキスト・ページ番号
 data/guidebook_toc.json     ガイドブックの目次（手入力）
 data/guidebook_nombres.json 誌面を見て確かめたページ番号（手入力）
+data/guidebook_links.json   設問 → 誌面のページ（生成物）
 data/guidebook_tags.json    町名・分野の分類。今のビューアは使っていない
 
 scripts/extract_answers.py  解答PDFから座標ベースで正解を抽出
@@ -224,6 +249,7 @@ scripts/extract_guidebook.py  ガイドブックの本文とノンブルを取�
 scripts/ocr_guidebook.py      tesseractで読み直し、ページごとに良い方を採る
 scripts/render_guidebook.py   全ページをWebP画像に書き出す
 scripts/build_guidebook.py    guidebook.html を生成
+scripts/link_guidebook.py     設問ごとに誌面の該当ページを探す
 scripts/split_pdf.py        大きいPDFをGitHubの制限内に分割
 scripts/inspect_pdf.py      レイアウト確認用の診断ツール
 ```

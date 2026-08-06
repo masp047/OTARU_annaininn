@@ -463,12 +463,26 @@ function indexOfPage(n) {
   return back >= 0 ? back : -1;
 }
 
-/* 前に読んでいたページから続ける。無ければ本文の1ページ目から。 */
+/* #p107 のように誌面のページを指して開ける。学習アプリの設問から
+   「ガイドブックで確かめる」で飛んでくるのがこれ。 */
+function fromHash() {
+  const m = /^#p(\d+)$/.exec(location.hash);
+  if (!m) return -1;
+  return indexOfPage(Number(m[1]));
+}
+addEventListener('hashchange', () => {
+  const k = fromHash();
+  if (k >= 0) { i = k; show(); closePanel(); }
+});
+
+/* 開き始めるページ。指定があればそこ、無ければ前に読んでいた続き、
+   それも無ければ本文の1ページ目。 */
 const savedRaw = localStorage.getItem(LAST);
 const saved = savedRaw === null ? NaN : Number(savedRaw);
-i = Number.isInteger(saved) && saved >= 0 && saved < PAGES.length
-  ? saved
-  : Math.max(0, indexOfPage(1));   // 既定は本文の1ページ目
+const asked = fromHash();
+i = asked >= 0 ? asked
+  : Number.isInteger(saved) && saved >= 0 && saved < PAGES.length ? saved
+  : Math.max(0, indexOfPage(1));
 $('#slider').max = PAGES.length - 1;
 $('#list').innerHTML = renderToc();
 bindList();
